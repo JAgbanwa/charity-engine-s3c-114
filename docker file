@@ -1,0 +1,10 @@
+# Dockerfile for Sum of Three Cubes k=114 Search
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Copy the search script
+COPY search_114.py .
+
+# Run the search (Charity Engine will override environment variables)
+CMD ["python", "search_114.py"]
