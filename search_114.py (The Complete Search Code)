@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+"""
+PRECISE SEARCH FOR SUM OF THREE CUBES k=114
+
+Finds integer solutions to:
+    x = -α + √((α+6n)² + (36n³ - 19)/α)
+
+If (x, α, n) are integers satisfying above, then:
+    y = 2α + 6n
+    z = -α - √((α+6n)² + (36n³ - 19)/α)
+    x³ + y³ + z³ = 114  (automatically)
+
+Author: Jamal Agbanwa
+For Charity Engine Grid
+"""
+
+import os
+import math
+import sys
+import time
+
+def is_perfect_square(n: int):
+    """Exact perfect square check for integers of any size."""
+    if n < 0:
+        return False, 0
+    root = math.isqrt(n)
+    return (root * root == n, root)
+
+def get_divisors(n: int, limit: int = None):
+    """Get all positive divisors of |n|, optionally limited."""
+    if n == 0:
+        return []
+    
+    divisors = []
+    n_abs = abs(n)
+    
+    # Upper bound for divisor search
+    max_divisor = int(math.isqrt(n_abs))
+    if limit is not None:
+        max_divisor = min(max_divisor, limit)
+    
+    for i in range(1, max_divisor + 1):
+        if n_abs % i == 0:
+            divisors.append(i)
+            if i != n_abs // i:
+                other = n_abs // i
+                if limit is None or other <= limit:
+                    divisors.append(other)
+    
+    return divisors
+
+def check_candidate(n: int, alpha: int):
+    """
+    Check if (n, α) yields integer solution.
+    Returns (x, y, z) if valid, None otherwise.
+    """
+    if alpha == 0:
+        return None  # Division by zero
+    
+    # Compute numerator: 36n³ - 19
+    numerator = 36 * n**3 - 19
+    
+    # α must divide numerator exactly
+    if numerator % alpha != 0:
+        return None
+    
+    # Compute discriminant: (α + 6n)² + (36n³ - 19)/α
+    term = numerator // alpha
+    discriminant = (alpha + 6 * n)**2 + term
+    
+    # Discriminant must be non-negative perfect square
+    is_sq, delta = is_perfect_square(discriminant)
+    if not is_sq:
+        return None
+    
+    # Compute x, y, z
+    x = -alpha + delta
+    y = 2 * alpha + 6 * n
+    z = -alpha - delta
+    
+    # Verify (should be true by construction)
+    if x**3 + y**3 + z**3 != 114:
+        return None  # Safety check
+    
+    return x, y, z, alpha, n
+
+def search_range(start_n: int, end_n: int, alpha_limit: int = None):
+    """Search for solutions in n ∈ [start_n, end_n]."""
+    
+    print("=" * 70)
+    print("SUM OF THREE CUBES SEARCH FOR k=114")
+    print("=" * 70)
+    print(f"Search range: n ∈ [{start_n}, {end_n}]")
+    print(f"Equation: x = -α + √((α+6n)² + (36n³ - 19)/α)")
+    if alpha_limit:
+        print(f"Alpha limit: |α| ≤ {alpha_limit}")
+    print("=" * 70)
+    
+    solutions = []
+    total_checked = 0
+    start_time = time.time()
+    
+    # Determine search direction
+    step = 1 if end_n >= start_n else -1
+    
+    for n in range(start_n, end_n + step, step):
+        # Progress reporting
+        if total_checked % 1000 == 0:
+            elapsed = time.time() - start_time
+            rate = total_checked / max(elapsed, 0.001)
+            print(f"Progress: n = {n:,} | Checked: {total_checked:,} | "
+                  f"Rate: {rate:.1f}/sec | Solutions: {len(solutions)}",
+                  flush=True)
+        
+        # Compute D = 36n³ - 19
+        D = 36 * n**3 - 19
+        
+        if D == 0:
+            continue
+        
+        # Get divisors of |D| as candidate α values
+        divisors = get_divisors(D, alpha_limit)
+        
+        # Try each divisor (positive and negative)
+        for div in divisors:
+            for sign in [1, -1]:
+                alpha = sign * div
+                
+                total_checked += 1
+                
+                # Check if this (n, α) gives solution
+                result = check_candidate(n, alpha)
+                if result:
+                    x, y, z, alpha_val, n_val = result
+                    
+                    # Ensure nonzero solution
+                    if x != 0 and y != 0 and z != 0:
+                        solutions.append((x, y, z, alpha_val, n_val))
+                        
+                        print("\n" + "!" * 70)
+                        print("🎯 SOLUTION FOUND!")
+                        print("!" * 70)
+                        print(f"n = {n_val:,}")
+                        print(f"α = {alpha_val:,}")
+                        print(f"x = {x:,}")
+                        print(f"y = {y:,}")
+                        print(f"z = {z:,}")
+                        print(f"Verification: {x}³ + {y}³ + {z}³ = {x**3 + y**3 + z**3}")
+                        print("!" * 70 + "\n")
+                        
+                        # Save immediately
+                        save_solution(x, y, z, alpha_val, n_val)
+    
+    # Search complete
+    elapsed = time.time() - start_time
+    print("\n" + "=" * 70)
+    print("SEARCH COMPLETE")
+    print("=" * 70)
+    print(f"Time: {elapsed:.2f} seconds")
+    print(f"Total (n,α) pairs checked: {total_checked:,}")
+    print(f"Solutions found: {len(solutions)}")
+    
+    if solutions:
+        print("\nALL SOLUTIONS FOUND:")
+        for i, (x, y, z, alpha, n) in enumerate(solutions, 1):
+            print(f"\nSolution {i}:")
+            print(f"  n = {n:,}")
+            print(f"  α = {alpha:,}")
+            print(f"  x = {x:,}")
+            print(f"  y = {y:,}")
+            print(f"  z = {z:,}")
+            print(f"  Check: {x}³ + {y}³ + {z}³ = {x**3 + y**3 + z**3}")
+    
+    return solutions
+
+def save_solution(x: int, y: int, z: int, alpha: int, n: int):
+    """Save solution to file."""
+    with open('solutions_114.txt', 'a') as f:
+        f.write(f"{x},{y},{z},{alpha},{n}\n")
+    
+    # Also save in human-readable format
+    with open('solutions_readable.txt', 'a') as f:
+        f.write("\n" + "=" * 50 + "\n")
+        f.write(f"SOLUTION FOUND at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"n = {n}\n")
+        f.write(f"α = {alpha}\n")
+        f.write(f"x = {x}\n")
+        f.write(f"y = {y}\n")
+        f.write(f"z = {z}\n")
+        f.write(f"Verification: {x}^3 + {y}^3 + {z}^3 = {x**3 + y**3 + z**3}\n")
+        f.write("=" * 50 + "\n")
+
+def main():
+    """Main function - reads parameters from environment."""
+    
+    # Get parameters from Charity Engine environment
+    START_N = int(os.getenv('START_N', '-100'))
+    END_N = int(os.getenv('END_N', '100'))
+    
+    # Optional: limit on |α| for faster search
+    ALPHA_LIMIT = os.getenv('ALPHA_LIMIT')
+    if ALPHA_LIMIT:
+        ALPHA_LIMIT = int(ALPHA_LIMIT)
+    
+    # WARNING if range is too small (for real search)
+    range_size = abs(END_N - START_N)
+    if range_size < 1000000 and abs(START_N) < 1000000:
+        print("\n⚠️  IMPORTANT WARNING ⚠️")
+        print("This search range is VERY SMALL.")
+        print("Based on other sum-of-three-cubes solutions,")
+        print("the real solution for k=114 likely has |n| > 1,000,000,000")
+        print("Consider using MUCH larger search ranges.")
+        print("\n")
+    
+    # Run the search
+    solutions = search_range(START_N, END_N, ALPHA_LIMIT)
+    
+    # Exit code indicates if solutions found
+    sys.exit(0 if solutions else 1)
+
+if __name__ == "__main__":
+    main()
